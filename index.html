@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#080b14">
+  <meta name="description" content="MARKO PRO MASAX ULTRA — dein persönlicher KI-Assistent für Ideen, Texte, Code und Wissen.">
+  <title>MARKO — PRO MASAX ULTRA</title>
+  <link rel="icon" href="assets/marko-icon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+  <script src="config.js"></script>
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <div class="ambient ambient-one"></div><div class="ambient ambient-two"></div>
+  <div class="app-shell">
+    <aside class="sidebar" id="sidebar">
+      <a class="brand" href="#" aria-label="Marko Startseite" id="brandHome">
+        <span class="brand-mark"><span></span><span></span><span></span></span>
+        <span class="brand-words"><b>MARKO</b><small>PRO MASAX <i>ULTRA</i></small></span>
+      </a>
+      <button class="new-chat" id="newChatBtn"><span class="plus">＋</span> Neuer Chat <kbd>⌘ K</kbd></button>
+      <div class="side-label">WORKSPACE</div>
+      <nav class="main-nav" aria-label="Hauptnavigation">
+        <button class="nav-item active" data-view="chat"><span class="nav-icon">◈</span> Chat <span class="nav-dot"></span></button>
+        <button class="nav-item" data-view="tools"><span class="nav-icon">✳</span> Werkzeuge <span class="nav-count">06</span></button>
+        <button class="nav-item" data-view="library"><span class="nav-icon">▤</span> Meine Notizen</button>
+      </nav>
+      <div class="side-label history-label">LETZTE CHATS <button id="clearHistory" title="Verlauf löschen">⌫</button></div>
+      <div class="history-list" id="historyList"><div class="history-empty">Deine Unterhaltungen<br>erscheinen hier.</div></div>
+      <div class="sidebar-bottom">
+        <div class="plan-card"><div class="plan-top"><span class="pulse-dot"></span><span id="modeLabel">DEMO-MODUS</span><span class="plan-spark">✦</span></div><strong>Deine Ideen. Dein Orbit.</strong><p>Aktiviere ein KI-Backend, um Marko mit echter Modell-Power zu verbinden.</p><button id="setupBackendBtn">KI verbinden <span>↗</span></button></div>
+        <button class="profile-row" id="settingsBtn"><span class="avatar">M</span><span class="profile-copy"><b>Marko Workspace</b><small>Einstellungen & Setup</small></span><span class="profile-more">···</span></button>
+      </div>
+    </aside>
+
+    <main class="main-panel">
+      <header class="topbar">
+        <button class="mobile-menu icon-button" id="mobileMenu" aria-label="Menü öffnen">☰</button>
+        <div class="breadcrumb"><span>WORKSPACE</span><span class="crumb-slash">/</span><b id="pageHeading">NEUER CHAT</b></div>
+        <div class="top-actions"><div class="connection-status" id="connectionStatus"><span class="status-dot"></span><span>LOKAL BEREIT</span></div><button class="icon-button" id="topSettings" title="Einstellungen" aria-label="Einstellungen">⚙</button></div>
+      </header>
+
+      <section class="view active" id="chatView">
+        <div class="conversation-wrap" id="conversationWrap">
+          <div class="welcome" id="welcomePanel">
+            <div class="eyebrow"><span class="eyebrow-line"></span> DEIN KI-ASSISTENT. NEU GEDACHT.</div>
+            <div class="hero-orb-wrap" aria-hidden="true"><div class="orb-ring ring-a"></div><div class="orb-ring ring-b"></div><div class="orb-core"><span class="orb-glyph">M</span><span class="orb-glint"></span></div><div class="orbit-node node-a"></div><div class="orbit-node node-b"></div><div class="orbit-node node-c"></div></div>
+            <h1>Was bauen wir<br><span>heute zusammen?</span></h1>
+            <p class="hero-sub">Ich bin <strong>Marko</strong> — dein kreativer Co-Pilot für Ideen, Wissen, Texte und Code.</p>
+            <div class="prompt-grid">
+              <button class="prompt-card" data-prompt="Hilf mir, eine richtig coole Website zu planen. Gib mir Konzept, Design und die ersten Schritte."><span class="prompt-icon icon-violet">✳</span><span><b>Etwas Großes bauen</b><small>Von der Idee zum konkreten Plan</small></span><span class="prompt-arrow">↗</span></button>
+              <button class="prompt-card" data-prompt="Erkläre mir ein schwieriges Thema einfach, mit Beispielen und einer kurzen Zusammenfassung."><span class="prompt-icon icon-blue">⌘</span><span><b>Etwas verstehen</b><small>Komplexes einfach erklärt</small></span><span class="prompt-arrow">↗</span></button>
+              <button class="prompt-card" data-prompt="Schreibe einen starken, modernen Text für mein Projekt. Frag nach fehlenden Details oder mach einen guten ersten Entwurf."><span class="prompt-icon icon-orange">✎</span><span><b>Texte erschaffen</b><small>Schreiben, verbessern, übersetzen</small></span><span class="prompt-arrow">↗</span></button>
+              <button class="prompt-card" data-prompt="Hilf mir beim Programmieren. Erkläre die Lösung und gib mir gut kommentierten, funktionierenden Code."><span class="prompt-icon icon-green">⌘</span><span><b>Code entwickeln</b><small>Debugging, Ideen und Lösungen</small></span><span class="prompt-arrow">↗</span></button>
+            </div>
+          </div>
+          <div class="messages" id="messages" aria-live="polite"></div>
+        </div>
+        <div class="composer-area">
+          <div class="file-context" id="fileContext" hidden><span>▧</span><span id="fileName">Datei bereit</span><button id="removeFile" aria-label="Datei entfernen">×</button></div>
+          <form class="composer" id="chatForm">
+            <button class="attach-button" type="button" id="attachBtn" aria-label="Textdatei anhängen" title="Textdatei anhängen">＋</button>
+            <input type="file" id="fileInput" accept=".txt,.md,.csv,.json,.html,.css,.js,.py,.java,.ts,.xml,.log" hidden>
+            <textarea id="messageInput" rows="1" placeholder="Frag Marko alles, das dir gerade durch den Kopf geht …" aria-label="Nachricht an Marko"></textarea>
+            <div class="composer-end"><span class="enter-hint">ENTER ↵</span><button class="send-button" id="sendBtn" type="submit" aria-label="Nachricht senden"><span>↑</span></button></div>
+          </form>
+          <div class="composer-footer"><span><span class="tiny-spark">✦</span> MARKO lernt mit jedem guten Prompt — prüfe wichtige Fakten trotzdem.</span><span>SHIFT + ENTER · ZEILENUMBRUCH</span></div>
+        </div>
+      </section>
+
+      <section class="view tools-view" id="toolsView" hidden>
+        <div class="section-intro"><div class="eyebrow"><span class="eyebrow-line"></span> DEIN DIGITALER WERKZEUGKOFFER</div><h1>Weniger Routine.<br><span>Mehr Möglichkeiten.</span></h1><p>Wähle ein Werkzeug und Marko öffnet einen passenden Start-Prompt für dich.</p></div>
+        <div class="tool-grid">
+          <button class="tool-card" data-tool="brainstorm"><span class="tool-icon tool-violet">✳</span><span class="tool-tag">IDEEN</span><h3>Ideen-Generator</h3><p>Frische Konzepte, kreative Ansätze und ungewöhnliche Perspektiven.</p><span class="tool-link">Ideen entwickeln <b>↗</b></span></button>
+          <button class="tool-card" data-tool="writing"><span class="tool-icon tool-blue">✎</span><span class="tool-tag">TEXT</span><h3>Text-Studio</h3><p>Texte formulieren, umschreiben, kürzen oder in einen anderen Ton bringen.</p><span class="tool-link">Text erstellen <b>↗</b></span></button>
+          <button class="tool-card" data-tool="coding"><span class="tool-icon tool-green">⌘</span><span class="tool-tag">CODE</span><h3>Code-Labor</h3><p>Programmieren, Fehler finden und technische Konzepte verstehen.</p><span class="tool-link">Code starten <b>↗</b></span></button>
+          <button class="tool-card" data-tool="learning"><span class="tool-icon tool-orange">◉</span><span class="tool-tag">WISSEN</span><h3>Lern-Coach</h3><p>Schwierige Themen mit Beispielen, Quizfragen und Lernplänen knacken.</p><span class="tool-link">Etwas lernen <b>↗</b></span></button>
+          <button class="tool-card" data-tool="planning"><span class="tool-icon tool-pink">▦</span><span class="tool-tag">PLANUNG</span><h3>Projekt-Navigator</h3><p>Große Ziele in klare Etappen, Aufgaben und nächste Schritte verwandeln.</p><span class="tool-link">Projekt planen <b>↗</b></span></button>
+          <button class="tool-card" data-tool="analyze"><span class="tool-icon tool-cyan">⌕</span><span class="tool-tag">ANALYSE</span><h3>Denk-Labor</h3><p>Optionen vergleichen, Vor- und Nachteile abwägen und strukturiert entscheiden.</p><span class="tool-link">Analysieren <b>↗</b></span></button>
+        </div>
+      </section>
+
+      <section class="view library-view" id="libraryView" hidden>
+        <div class="section-intro"><div class="eyebrow"><span class="eyebrow-line"></span> DEIN PERSÖNLICHER SPEICHER</div><h1>Gedanken, die<br><span>bleiben dürfen.</span></h1><p>Speichere Antworten aus dem Chat als Notizen. Sie bleiben in diesem Browser gespeichert.</p></div>
+        <div class="notes-toolbar"><div class="notes-count" id="notesCount">0 NOTIZEN</div><button class="primary-outline" id="newNoteBtn">＋ Neue Notiz</button></div>
+        <div class="notes-grid" id="notesGrid"></div>
+        <div class="empty-notes" id="emptyNotes"><span>▤</span><b>Dein Ideen-Archiv ist noch leer.</b><p>Speichere eine Antwort, die du später wieder brauchst.</p></div>
+      </section>
+
+      <footer class="app-footer"><span>© MARKO PRO MASAX ULTRA</span><span>MADE FOR CURIOSITY <i>✦</i></span><span class="footer-version">BUILD 1.0.0</span></footer>
+    </main>
+  </div>
+
+  <div class="modal-backdrop" id="settingsModal" hidden>
+    <section class="settings-modal" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
+      <div class="modal-head"><div><div class="eyebrow"><span class="eyebrow-line"></span> CONTROL CENTER</div><h2 id="settingsTitle">Marko konfigurieren</h2></div><button class="icon-button close-modal" id="closeSettings" aria-label="Schließen">×</button></div>
+      <p class="modal-description">Passe deinen Workspace an oder verbinde ein eigenes KI-Backend. Deine Chats und Einstellungen bleiben lokal in diesem Browser.</p>
+      <div class="settings-section"><label for="backendUrl">KI-Backend-URL <span>OPTIONAL</span></label><input id="backendUrl" type="url" placeholder="https://dein-worker.workers.dev/chat" autocomplete="url"><small>Füge hier die URL deines bereitgestellten Marko-Workers ein. Kein API-Schlüssel in dieses Feld.</small></div>
+      <div class="settings-section"><label for="assistantName">Assistentenname</label><input id="assistantName" type="text" maxlength="32" value="Marko" placeholder="Marko"></div>
+      <div class="secure-note"><span>◇</span><p><b>Sicherheit zuerst</b><br>Lege den OpenAI-API-Schlüssel als Secret im Backend ab. Niemals in <code>app.js</code>, <code>config.js</code> oder einem öffentlichen GitHub-Repository speichern.</p></div>
+      <div class="modal-actions"><button class="secondary-button" id="testBackendBtn">Verbindung testen</button><button class="primary-button" id="saveSettingsBtn">Einstellungen speichern <span>↗</span></button></div>
+      <div id="settingsFeedback" class="settings-feedback" role="status"></div>
+      <div class="modal-doc-link">Setup-Anleitung: <a href="README.md" target="_blank" rel="noreferrer">README.md öffnen ↗</a></div>
+    </section>
+  </div>
+
+  <div class="toast" id="toast" role="status"></div>
+</body>
+</html>

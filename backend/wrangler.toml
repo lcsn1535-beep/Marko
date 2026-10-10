@@ -1,0 +1,9 @@
+name = "marko-pro-masax-ultra-api"
+main = "worker.js"
+compatibility_date = "2026-10-01"
+
+[vars]
+# Ändere dies auf die Origin deiner GitHub-Pages-Website, ohne Pfad und ohne Slash am Ende.
+# Beispiel: https://deinname.github.io
+ALLOWED_ORIGIN = "https://DEIN-GITHUB-NAME.github.io"
+OPENAI_MODEL = "gpt-4.1-mini"

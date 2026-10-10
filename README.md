@@ -10,6 +10,9 @@ Ein futuristischer, deutschsprachiger KI-Assistent als statische Website. Das Fr
 - Persönliches Notiz-Archiv im Browser
 - Anhänge für TXT, Markdown, CSV, JSON und Quellcode (bis 300 KB; Textausschnitt bis 18.000 Zeichen)
 - Kleine lokale Rechenhilfe
+- **Live-Wetter ohne KI-API-Key** über Open-Meteo (Ortsuche oder freigegebener Browser-Standort)
+- **Freie Wissenssuche im Demo-Modus** über die deutschsprachige Wikipedia, z. B. allgemeine Infos zum Hamburger SV
+- **Live-Websuche im KI-Backend** für aktuelle Nachrichten, HSV-Spielplan/Ergebnisse, Tabellenstände und weitere veränderliche Fakten; recherchierte Quellen werden klickbar angezeigt
 - Optionales Backend für echte KI-Antworten
 - API-Schlüssel bleibt als Secret im Backend und gehört niemals ins öffentliche Frontend
 
@@ -24,7 +27,7 @@ Ein futuristischer, deutschsprachiger KI-Assistent als statische Website. Das Fr
 5. Wähle bei **Build and deployment** die Bereitstellung von einem Branch, normalerweise `main` und `/ (root)`, und speichere.
 6. Warte auf den GitHub-Pages-Build. Die Website-URL wird dort angezeigt.
 
-Danach funktioniert Marko schon im **Demo-Modus**. Du musst keine Pakete installieren und keinen Build durchführen.
+Danach funktioniert Marko schon im **Demo-Modus**. Wetterfragen funktionieren direkt; einfache Enzyklopädie-Suchen wie „Infos zum HSV“ fragen Wikipedia ab. Du musst keine Pakete installieren und keinen Build durchführen. Für freie, umfassende Antworten und aktuelle Webrecherche braucht Marko das unten beschriebene KI-Backend.
 
 ## 2. Echte KI-Antworten aktivieren (optional)
 
@@ -87,4 +90,6 @@ MARKO-PRO-MASAX-ULTRA/
 
 ## Technologie
 
-Vanilla HTML, CSS und JavaScript für das Frontend; Cloudflare Workers und OpenAI Responses API optional für echte KI-Antworten. Es sind keine Frontend-Pakete nötig.
+Vanilla HTML, CSS und JavaScript für das Frontend; Open-Meteo für Live-Wetter; Wikipedia API als frei zugängliche Enzyklopädie im Demo-Modus; Cloudflare Workers und OpenAI Responses API mit integrierter `web_search`-Funktion für echte KI-Antworten samt Quellen. Es sind keine Frontend-Pakete nötig.
+
+Dokumentation: [Open-Meteo API](https://open-meteo.com/en/docs), [Wikimedia Action API](https://www.mediawiki.org/wiki/API:Search), [OpenAI Web Search](https://developers.openai.com/api/docs/guides/tools-web-search).

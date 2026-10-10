@@ -68,7 +68,8 @@
       .replace(/`([^`]+)`/g, '<code>$1</code>')
       .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
       .replace(/\*([^*]+)\*/g, '<em>$1</em>')
-      .replace(/~~([^~]+)~~/g, '<del>$1</del>');
+      .replace(/~~([^~]+)~~/g, '<del>$1</del>')
+      .replace(/\[([^\]]+)\]\((https:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
   }
   function timeLabel(timestamp = Date.now()) {
     return new Intl.DateTimeFormat('de-DE', { hour: '2-digit', minute: '2-digit' }).format(new Date(timestamp));
@@ -182,7 +183,13 @@
     addMessage('user', text);
     state.busy = true; $('#sendBtn').disabled = true; showTyping();
     try {
-      const reply = state.endpoint ? await askBackend() : await demoReply(text);
+      let reply;
+      // Live weather works directly from GitHub Pages and does not require an AI API key.
+      if (isWeatherQuestion(text)) reply = await liveWeatherReply(text);
+      else if (state.endpoint) reply = await askBackend();
+      // In offline/demo mode, use a free encyclopedia API for factual lookups.
+      else if (isInfoLookupRequest(text)) reply = await wikipediaReply(text);
+      else reply = await demoReply(text);
       removeTyping(); addMessage('assistant', reply); persistCurrent();
     } catch (error) {
       removeTyping();
@@ -228,6 +235,113 @@
     function addSub() { let v = mulDiv(); while (['+', '-'].includes(tokens[pos])) { const op = tokens[pos++]; const b = mulDiv(); v = op === '+' ? v + b : v - b; } return v; }
     try { const result = addSub(); if (pos !== tokens.length || !Number.isFinite(result)) return null; return result; } catch { return null; }
   }
+  function isWeatherQuestion(text) {
+    return /\b(wetter|temperatur|temperaturen|regnet|regenwahrscheinlichkeit|regenradar|windgeschwindigkeit|wetterbericht|vorhersage)\b/i.test(text);
+  }
+  function extractWeatherPlace(text) {
+    const match = text.match(/\b(?:in|für|bei)\s+(.+?)(?=[?!.,]|$)/i);
+    if (!match) return '';
+    return match[1]
+      .replace(/\b(heute|morgen|übermorgen|jetzt|aktuell|diese woche|nächste woche|am wochenende)\b.*$/i, '')
+      .replace(/\b(bitte|mal|eigentlich)\b/gi, '')
+      .trim();
+  }
+  function locationAliases(place) {
+    return !place || /^(hier|hig|bei mir|mein(?:em|en)? standort|meiner nähe|in meiner nähe|aktueller standort)$/i.test(place.trim());
+  }
+  function getBrowserLocation() {
+    return new Promise((resolve, reject) => {
+      if (!navigator.geolocation) return reject(new Error('Dieser Browser unterstützt keine Standortabfrage.'));
+      navigator.geolocation.getCurrentPosition(
+        position => resolve({ latitude: position.coords.latitude, longitude: position.coords.longitude, name: 'dein aktueller Standort' }),
+        error => reject(new Error(error.code === 1 ? 'Standortzugriff wurde nicht erlaubt. Erlaube ihn im Browser oder schreibe einen Stadtnamen in deine Wetterfrage.' : 'Standort konnte nicht ermittelt werden. Schreibe stattdessen einen Stadtnamen in deine Wetterfrage.')),
+        { enableHighAccuracy: false, timeout: 9000, maximumAge: 600000 }
+      );
+    });
+  }
+  async function resolveWeatherPlace(place) {
+    if (locationAliases(place)) return getBrowserLocation();
+    const url = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(place)}&count=8&language=de&format=json`;
+    const response = await fetch(url, { headers: { Accept: 'application/json' } });
+    if (!response.ok) throw new Error('Der Ortsdienst ist gerade nicht erreichbar. Bitte versuche es erneut.');
+    const data = await response.json();
+    const results = Array.isArray(data.results) ? data.results : [];
+    if (!results.length) {
+      if (/^(hig|hier|bei mir)$/i.test(place.trim())) return getBrowserLocation();
+      throw new Error(`Ich finde den Ort „${place}“ nicht. Schreibe bitte den Namen einer Stadt oder erlaube die Standortabfrage mit „hier“.`);
+    }
+    const chosen = results.find(item => item.country_code === 'DE') || results[0];
+    const placeParts = [chosen.name, chosen.admin1, chosen.country].filter((value, index, arr) => value && arr.indexOf(value) === index);
+    return { latitude: chosen.latitude, longitude: chosen.longitude, name: placeParts.join(', ') };
+  }
+  function weatherDescription(code) {
+    const descriptions = {
+      0: 'Klarer Himmel', 1: 'Überwiegend klar', 2: 'Teilweise bewölkt', 3: 'Bedeckt',
+      45: 'Nebel', 48: 'Nebel mit Reifablagerung', 51: 'Leichter Nieselregen', 53: 'Mäßiger Nieselregen', 55: 'Starker Nieselregen',
+      56: 'Gefrierender leichter Nieselregen', 57: 'Gefrierender starker Nieselregen', 61: 'Leichter Regen', 63: 'Mäßiger Regen', 65: 'Starker Regen',
+      66: 'Leichter gefrierender Regen', 67: 'Starker gefrierender Regen', 71: 'Leichter Schneefall', 73: 'Mäßiger Schneefall', 75: 'Starker Schneefall',
+      77: 'Schneegriesel', 80: 'Leichte Regenschauer', 81: 'Mäßige Regenschauer', 82: 'Starke Regenschauer', 85: 'Leichte Schneeschauer',
+      86: 'Starke Schneeschauer', 95: 'Gewitter', 96: 'Gewitter mit leichtem Hagel', 99: 'Gewitter mit starkem Hagel'
+    };
+    return descriptions[Number(code)] || 'Wetterzustand nicht verfügbar';
+  }
+  function windDirection(degrees) {
+    const names = ['N', 'NO', 'O', 'SO', 'S', 'SW', 'W', 'NW'];
+    return names[Math.round(Number(degrees || 0) / 45) % 8];
+  }
+  async function liveWeatherReply(userText) {
+    try {
+      const place = await resolveWeatherPlace(extractWeatherPlace(userText));
+      const params = new URLSearchParams({
+        latitude: String(place.latitude), longitude: String(place.longitude),
+        current: 'temperature_2m,relative_humidity_2m,apparent_temperature,is_day,precipitation,weather_code,wind_speed_10m,wind_direction_10m',
+        daily: 'weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,sunrise,sunset',
+        timezone: 'auto', forecast_days: '1'
+      });
+      const response = await fetch(`https://api.open-meteo.com/v1/forecast?${params.toString()}`, { headers: { Accept: 'application/json' } });
+      if (!response.ok) throw new Error('Der Wetterdienst ist gerade nicht erreichbar. Bitte versuche es erneut.');
+      const data = await response.json();
+      const current = data.current || {}; const daily = data.daily || {};
+      const fmt = (value, digits = 0) => Number.isFinite(Number(value)) ? new Intl.NumberFormat('de-DE', { maximumFractionDigits: digits }).format(Number(value)) : '–';
+      const clock = value => typeof value === 'string' && value.includes('T') ? value.split('T')[1].slice(0, 5) : '–';
+      const date = current.time ? current.time.slice(0, 10) : new Date().toISOString().slice(0, 10);
+      const rain = daily.precipitation_probability_max?.[0];
+      const min = daily.temperature_2m_min?.[0]; const max = daily.temperature_2m_max?.[0];
+      const rise = daily.sunrise?.[0]; const set = daily.sunset?.[0];
+      return `## 🌦️ Wetter für ${place.name}\n\n**Stand:** ${date}${current.time ? `, ${clock(current.time)} Ortszeit` : ''} · Daten live abgerufen\n\n- **Jetzt:** ${weatherDescription(current.weather_code)}\n- **Temperatur:** ${fmt(current.temperature_2m, 1)} °C (gefühlt ${fmt(current.apparent_temperature, 1)} °C)\n- **Heute:** ${fmt(min, 1)} bis ${fmt(max, 1)} °C\n- **Regenwahrscheinlichkeit heute:** ${rain == null ? '–' : `${fmt(rain)} %`}\n- **Niederschlag aktuell:** ${fmt(current.precipitation, 1)} mm\n- **Wind:** ${fmt(current.wind_speed_10m)} km/h aus ${windDirection(current.wind_direction_10m)}\n- **Luftfeuchtigkeit:** ${fmt(current.relative_humidity_2m)} %\n- **Sonnenaufgang / Sonnenuntergang:** ${clock(rise)} / ${clock(set)}\n\n*Quelle: [Open-Meteo](https://open-meteo.com/). Für den lokalen Wetterbericht habe ich nur bei dieser Wetterfrage den genannten Ort beziehungsweise – bei „hier“ oder „hig“ – nach deiner Browser-Erlaubnis deinen Standort verwendet.*`;
+    } catch (error) {
+      return `## Wetterabfrage nicht abgeschlossen\n\n${error.message || 'Der Wetterdienst hat nicht geantwortet.'}\n\nDu kannst zum Beispiel **„Wetter heute in Hamburg“** schreiben oder **„Wetter heute hier“** verwenden und den Standortzugriff im Browser erlauben.`;
+    }
+  }
+  function isInfoLookupRequest(text) {
+    return /\b(hsv|hamburger sv|wer ist|wer war|was ist|was sind|infos?\s+(?:über|zu|zum|zur|vom)|informationen?\s+(?:über|zu|zum|zur)|fakten\s+(?:über|zu)|geschichte\s+von|erklär(?:e)?\s+(?:mir\s+)?|erzähl(?:e)?\s+(?:mir\s+)?(?:etwas|was)\s+über|wikipedia)\b/i.test(text);
+  }
+  function wikipediaSearchTerm(text) {
+    if (/\b(hsv|hamburger sv)\b/i.test(text)) return 'Hamburger SV';
+    return text
+      .replace(/^\s*(?:bitte\s+)?(?:gib\s+mir\s+)?(?:ein paar\s+)?(?:aktuelle\s+)?(?:infos?|informationen|fakten)\s+(?:über|zum|zur|zu|vom|von der|von dem)\s+/i, '')
+      .replace(/^\s*(?:bitte\s+)?(?:erklär(?:e)?|erzähl(?:e)?)\s+(?:mir\s+)?(?:etwas|was)?\s*(?:über|zu|zum|zur)?\s*/i, '')
+      .replace(/^\s*(?:wer ist|wer war|was ist|was sind|geschichte von|wikipedia)\s+/i, '')
+      .replace(/[?!.,]+$/g, '').trim().slice(0, 140);
+  }
+  async function wikipediaReply(userText) {
+    const term = wikipediaSearchTerm(userText);
+    if (!term) return demoReply(userText);
+    try {
+      const url = `https://de.wikipedia.org/w/api.php?action=query&generator=search&gsrsearch=${encodeURIComponent(term)}&gsrlimit=1&prop=extracts%7Cinfo&exintro=1&explaintext=1&inprop=url&format=json&formatversion=2&origin=*`;
+      const response = await fetch(url, { headers: { Accept: 'application/json' } });
+      if (!response.ok) throw new Error('Wikipedia ist gerade nicht erreichbar.');
+      const data = await response.json();
+      const pages = data?.query?.pages;
+      const page = Array.isArray(pages) ? pages[0] : Object.values(pages || {})[0];
+      if (!page || !page.extract) return `Ich konnte in der freien Enzyklopädie keinen passenden Artikel für **„${term}“** finden.\n\nFür aktuelle Nachrichten, Sporttabellen und weitere Live-Recherche verbinde Marko mit dem KI-Backend in **Einstellungen & Setup**.`;
+      const extract = page.extract.trim().slice(0, 3500);
+      return `## ${page.title}\n\n${extract}\n\n**Quelle:** [Wikipedia: ${page.title}](${page.fullurl || `https://de.wikipedia.org/wiki/${encodeURIComponent(page.title.replace(/ /g, '_'))}`})\n\n*Das ist ein Enzyklopädie-Auszug, keine Live-Nachrichten. Für aktuelle HSV-Ergebnisse, Tabellenstände oder andere tagesaktuelle Informationen verbinde das KI-Backend mit aktivierter Websuche.*`;
+    } catch {
+      return `Ich konnte gerade keine Wissensdatenbank erreichen. Prüfe deine Internetverbindung. Wetterabfragen funktionieren separat; für umfangreiche Web-Recherche kannst du das KI-Backend verbinden.`;
+    }
+  }
+
   async function demoReply(userText) {
     await new Promise(resolve => setTimeout(resolve, 550 + Math.random() * 500));
     const normalized = userText.toLowerCase();
@@ -323,7 +437,9 @@
       coding: 'Du bist mein Senior-Software-Coach. Hilf mir bei einer sauberen, sicheren Lösung. Erkläre Annahmen, gib kommentierten Code und nenne sinnvolle Tests.',
       learning: 'Du bist mein Lern-Coach. Erkläre das Thema Schritt für Schritt, verwende Beispiele, stelle mir danach Quizfragen und passe die Erklärung an mein Niveau an.',
       planning: 'Du bist mein Projekt-Navigator. Verwandle mein Ziel in einen realistischen Plan mit Etappen, Prioritäten, Risiken und konkreten nächsten Schritten.',
-      analyze: 'Analysiere meine Frage strukturiert. Trenne Fakten, Annahmen und Unsicherheiten, vergleiche Alternativen und gib eine nachvollziehbare Empfehlung.'
+      analyze: 'Analysiere meine Frage strukturiert. Trenne Fakten, Annahmen und Unsicherheiten, vergleiche Alternativen und gib eine nachvollziehbare Empfehlung.',
+      weather: 'Wie ist das Wetter heute hier? Nutze meinen freigegebenen Browser-Standort und nenne aktuelle Temperatur, Wetterzustand, Wind und Regenwahrscheinlichkeit.',
+      research: 'Recherchiere aktuelle Informationen zum HSV (Hamburger SV): Nachrichten, Tabellenposition, nächste Spiele und letzte Ergebnisse. Nutze Websuche und nenne Quellen sowie Datum.'
     };
     switchView('chat'); messageInput.value = prompts[button.dataset.tool] || ''; resizeInput(); messageInput.focus();
   }));

@@ -57,7 +57,7 @@ export default {
     if (!messages.length) return reply({ error: 'Bitte sende eine Textnachricht.' }, 400, origin, allowedOrigin);
 
     const assistantName = typeof body.assistantName === 'string' ? body.assistantName.slice(0, 32) : 'Marko';
-    const systemPrompt = `Du bist ${assistantName}, ein hilfreicher, kreativer, ehrlicher und sicherheitsbewusster KI-Assistent in der Web-App MARKO PRO MASAX ULTRA. Antworte standardmäßig auf Deutsch, passe dich der Sprache des Nutzers an, erkläre komplexe Themen verständlich, und liefere konkrete, sorgfältig strukturierte Ergebnisse. Bei Code: gib vollständige, nachvollziehbare Beispiele, weise auf Voraussetzungen hin und vermeide unsichere Praktiken. Erfinde keine Fakten, Quellen, Fähigkeiten oder ausgeführten Aktionen. Nenne Unsicherheit, wenn wichtig. Frage nur nach Details, die wirklich nötig sind; mache sonst vernünftige Annahmen. Du kannst nicht behaupten, Dateien, Webseiten oder externe Systeme geprüft zu haben, wenn sie nicht im Chatinhalt stehen oder tatsächlich mit einem Werkzeug verfügbar waren.`;
+    const systemPrompt = `Du bist ${assistantName}, ein hilfreicher, kreativer, ehrlicher und sicherheitsbewusster KI-Assistent in der Web-App MARKO PRO MASAX ULTRA. Antworte standardmäßig auf Deutsch, passe dich der Sprache des Nutzers an, erkläre komplexe Themen verständlich und liefere konkrete, sorgfältig strukturierte Ergebnisse. Du hast ein Websuch-Werkzeug: Nutze es bei aktuellen, veränderlichen oder unbekannten Informationen (zum Beispiel HSV-News, Spielpläne, Tabellen, Wetter, Nachrichten, Preise, Softwareversionen und öffentliche Fakten). Beantworte einfache zeitlose Fragen direkt, wenn keine Suche nötig ist. Nenne bei recherchierten Antworten das Datum, trenne Fakten von Unsicherheit und zitiere verlässliche Quellen. Erfinde keine Fakten, Quellen, Fähigkeiten oder ausgeführten Aktionen. Bei Code: liefere vollständige, nachvollziehbare Beispiele, nenne Voraussetzungen und vermeide unsichere Praktiken. Frage nur nach Details, die wirklich nötig sind; mache sonst vernünftige Annahmen. Behaupte nicht, Webseiten oder externe Systeme geprüft zu haben, wenn du das nicht getan hast.`;
 
     const model = env.OPENAI_MODEL || 'gpt-4.1-mini';
     let upstream;
@@ -72,6 +72,8 @@ export default {
           model,
           instructions: systemPrompt,
           input: messages,
+          tools: [{ type: 'web_search', search_context_size: 'medium' }],
+          include: ['web_search_call.action.sources'],
           store: false
         })
       });
@@ -95,6 +97,22 @@ export default {
       answer = result.output.flatMap(item => Array.isArray(item.content) ? item.content : []).filter(part => part.type === 'output_text' && typeof part.text === 'string').map(part => part.text).join('\n');
     }
     if (!answer.trim()) return reply({ error: 'Die KI hat keinen Text zurückgegeben.' }, 502, origin, allowedOrigin);
-    return reply({ reply: answer.trim(), model }, 200, origin, allowedOrigin);
+
+    // Surface web citations as clickable Markdown links because a plain-text frontend
+    // cannot display the Responses API's annotation objects automatically.
+    const citations = [];
+    for (const item of (Array.isArray(result.output) ? result.output : [])) {
+      for (const part of (Array.isArray(item.content) ? item.content : [])) {
+        for (const annotation of (Array.isArray(part.annotations) ? part.annotations : [])) {
+          const url = typeof annotation.url === 'string' ? annotation.url : annotation.url_citation?.url;
+          const title = typeof annotation.title === 'string' ? annotation.title : annotation.url_citation?.title;
+          if (typeof url === 'string' && /^https:\/\//i.test(url) && !citations.some(source => source.url === url)) {
+            citations.push({ title: (typeof title === 'string' && title.trim() ? title.trim() : new URL(url).hostname).slice(0, 180), url });
+          }
+        }
+      }
+    }
+    const sourceBlock = citations.length ? `\n\n### Quellen\n${citations.slice(0, 6).map(source => `- [${source.title.replace(/[\[\]]/g, '')}](${source.url})`).join('\n')}` : '';
+    return reply({ reply: `${answer.trim()}${sourceBlock}`, model, webSearchEnabled: true, sources: citations.slice(0, 6) }, 200, origin, allowedOrigin);
   }
 };
